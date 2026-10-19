@@ -27,6 +27,7 @@ export type Match = {
 };
 
 export type MatchesRound = {
-  round: number;
+  /** Номер тура или null, если сервер его не прислал. */
+  round: number | null;
   matches: Match[];
 };

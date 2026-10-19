@@ -17,7 +17,11 @@ export function MatchCard({ match, isFavorite, onToggleFavorite }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.favorite}>
-        <FavoriteButton active={isFavorite} onPress={() => onToggleFavorite(match.id)} />
+        <FavoriteButton
+          active={isFavorite}
+          onPress={() => onToggleFavorite(match.id)}
+          subject={`${match.home.name} — ${match.away.name}`}
+        />
       </View>
 
       <View style={styles.row}>

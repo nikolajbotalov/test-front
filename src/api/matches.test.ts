@@ -71,6 +71,36 @@ describe('parseMatchesRound', () => {
     expect(() => parseMatchesRound({ matches: 'нет' })).toThrow(MatchesApiError);
     expect(() => parseMatchesRound(null)).toThrow('неожиданном формате');
   });
+
+  it('падает с ошибкой, если матчи есть, но ни один не разобрался', () => {
+    expect(() => parseMatchesRound({ matches: [{ id: 1 }, 'мусор'] })).toThrow(
+      'неожиданном формате',
+    );
+  });
+
+  it('не показывает номер тура, если сервер его не прислал', () => {
+    expect(parseMatchesRound({ matches: [] }).round).toBeNull();
+  });
+
+  it('оставляет первый матч из дубликатов id, чтобы не ломать ключи списка', () => {
+    const { matches } = parseMatchesRound({
+      matches: [buildMatch({ id: 'same' }), buildMatch({ id: 'same', status: 'live' })],
+    });
+
+    expect(matches).toHaveLength(1);
+    expect(matches[0].status).toBe('scheduled');
+  });
+
+  it('игнорирует отрицательную и дробную минуту', () => {
+    const { matches } = parseMatchesRound({
+      matches: [
+        { ...buildMatch({ id: 'a' }), minute: -3 },
+        { ...buildMatch({ id: 'b' }), minute: 67.5 },
+      ],
+    });
+
+    expect(matches.map((match) => match.minute)).toEqual([undefined, undefined]);
+  });
 });
 
 describe('fetchMatches', () => {
@@ -79,7 +109,7 @@ describe('fetchMatches', () => {
 
     await expect(fetchMatches()).resolves.toEqual(parseMatchesRound(matchesFixture));
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('matches.json'),
+      expect.stringMatching(/matches\.json\?t=\d+/),
       expect.objectContaining({ headers: { Accept: 'application/json' } }),
     );
   });
@@ -129,12 +159,12 @@ describe('fetchMatches', () => {
   });
 
   it('пробрасывает отмену по инициативе вызывающего', async () => {
-    const abortError = new Error('Aborted');
-    abortError.name = 'AbortError';
     fetchMock.mockImplementation(
       (_url: string, init: { signal: AbortSignal }) =>
         new Promise((_resolve, reject) => {
-          init.signal.addEventListener('abort', () => reject(abortError));
+          init.signal.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          );
         }),
     );
     const controller = new AbortController();
@@ -146,9 +176,8 @@ describe('fetchMatches', () => {
   });
 
   it('сообщает, если загрузку прервал не вызывающий', async () => {
-    const abortError = new Error('Aborted');
-    abortError.name = 'AbortError';
-    fetchMock.mockRejectedValue(abortError);
+    // fetch бросает DOMException, а не Error — проверяем именно такой случай.
+    fetchMock.mockRejectedValue(new DOMException('Aborted', 'AbortError'));
 
     await expect(fetchMatches()).rejects.toThrow('Загрузка прервана');
   });

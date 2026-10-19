@@ -107,12 +107,33 @@ describe('MatchesScreen', () => {
   it('подключает звёздочку только к выбранной карточке', async () => {
     await renderLoadedScreen();
 
-    expect(screen.getAllByLabelText('Добавить в избранное')).toHaveLength(3);
+    expect(screen.getAllByLabelText(/Добавить в избранное/)).toHaveLength(3);
 
-    await fireEvent.press(screen.getAllByLabelText('Добавить в избранное')[0]);
+    await fireEvent.press(screen.getAllByLabelText(/Добавить в избранное/)[0]);
 
-    expect(screen.getAllByLabelText('Убрать из избранного')).toHaveLength(1);
-    expect(screen.getAllByLabelText('Добавить в избранное')).toHaveLength(2);
+    expect(screen.getAllByLabelText(/Убрать из избранного/)).toHaveLength(1);
+    expect(screen.getAllByLabelText(/Добавить в избранное/)).toHaveLength(2);
+  });
+
+  it('не стирает список и показывает баннер, если обновление не удалось', async () => {
+    await renderLoadedScreen();
+
+    fetchMock.mockRejectedValueOnce(networkError());
+    await fireEvent.press(screen.getByText('Обновить'));
+
+    await screen.findByText(/соединение/);
+    expect(screen.getByText('Зенит')).toBeTruthy();
+    expect(screen.getByText('Рубин')).toBeTruthy();
+  });
+
+  it('сбрасывает подпись «Обновлено» после успешного обновления', async () => {
+    await renderLoadedScreen();
+    expect(screen.getByText(/Обновлено \d+ сек назад/)).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('Обновить'));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(screen.getByText(/Обновлено [0-2] сек назад/)).toBeTruthy();
   });
 
   it('показывает ошибку и повторяет загрузку', async () => {

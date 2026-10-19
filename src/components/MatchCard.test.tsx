@@ -73,7 +73,10 @@ describe('MatchCard', () => {
     const match = buildMatch({ id: 'm42' });
 
     await render(<MatchCard match={match} isFavorite={false} onToggleFavorite={onToggleFavorite} />);
-    await fireEvent.press(screen.getByLabelText('Добавить в избранное'));
+
+    // В подписи есть названия команд: у каждой карточки своя звёздочка для скринридера.
+    const star = screen.getByLabelText('Добавить в избранное: Хозяева — Гости');
+    await fireEvent.press(star);
 
     expect(onToggleFavorite).toHaveBeenCalledWith('m42');
   });
@@ -81,7 +84,7 @@ describe('MatchCard', () => {
   it('показывает закрашенную звезду для избранного матча', async () => {
     await render(<MatchCard match={buildMatch()} isFavorite onToggleFavorite={jest.fn()} />);
 
-    expect(screen.getByLabelText('Убрать из избранного')).toBeTruthy();
+    expect(screen.getByLabelText('Убрать из избранного: Хозяева — Гости')).toBeTruthy();
     expect(screen.getByText('★')).toBeTruthy();
   });
 });
